@@ -11,7 +11,7 @@ import { BEVERAGE_CATEGORIES } from "../types/beverage"
 interface BartenderScreenProps {
   beverages: BeverageType[]
   onSelectBeverage: (id: string) => void
-  onSwitchRole: (role: "admin" | "bartender" | "customer") => void
+  onSwitchRole: (role: "admin" | "bartender" | "customer" | "events") => void
 }
 
 export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchRole }: BartenderScreenProps) {

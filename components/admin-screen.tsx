@@ -16,10 +16,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ChevronDown, ChevronRight, RotateCcw, Download, Edit } from "lucide-react"
+import { ChevronDown, ChevronRight, RotateCcw, Download, Edit, Calendar } from "lucide-react"
 import type { BeverageType } from "../types/beverage"
 import { BEVERAGE_CATEGORIES } from "../types/beverage"
 import { exportData, importData, clearStorage, getEventInfo, updateEventInfo } from "../utils/storage"
+import { saveCompletedEvent } from "../utils/event-storage"
 
 interface AdminScreenProps {
   beverages: BeverageType[]
@@ -246,6 +247,10 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
         <Button className="w-full" onClick={() => onSwitchRole("bartender")} disabled={availableBeverages.length === 0}>
           Zur Barkeeper-Ansicht wechseln
         </Button>
+        <Button variant="outline" className="w-full bg-transparent" onClick={() => onSwitchRole("events")}>
+          <Calendar className="w-4 h-4 mr-2" />
+          Veranstaltungsübersicht
+        </Button>
       </div>
 
       {/* Data Management */}
@@ -261,6 +266,20 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
         >
           <RotateCcw className="w-4 h-4 mr-2" />
           Alle Daten zurücksetzen
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full bg-transparent text-blue-600 border-blue-200 hover:bg-blue-50"
+          onClick={() => {
+            const info = getEventInfo()
+            if (info.eventName && availableBeverages.some((b) => b.count > 0)) {
+              saveCompletedEvent(info.eventName, info.eventDate, beverages, info.eventStarted)
+              onResetData()
+            }
+          }}
+          disabled={!eventInfo.eventName || !availableBeverages.some((b) => b.count > 0)}
+        >
+          Veranstaltung abschließen
         </Button>
       </div>
 

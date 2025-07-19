@@ -6,10 +6,11 @@ import { saveToStorage, loadFromStorage, getEventInfo } from "../utils/storage"
 import AdminScreen from "./admin-screen"
 import BartenderScreen from "./bartender-screen"
 import DrinkScreen from "./drink-screen"
+import EventsOverviewScreen from "./events-overview-screen"
 
 export default function BeverageCounter() {
   const [beverages, setBeverages] = useState<BeverageType[]>(ALL_BEVERAGES)
-  const [currentRole, setCurrentRole] = useState<"admin" | "bartender" | "customer">("admin")
+  const [currentRole, setCurrentRole] = useState<"admin" | "bartender" | "customer" | "events">("admin")
   const [selectedBeverage, setSelectedBeverage] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -102,7 +103,7 @@ export default function BeverageCounter() {
     setCurrentRole("bartender")
   }
 
-  const handleSwitchRole = (role: "admin" | "bartender" | "customer") => {
+  const handleSwitchRole = (role: "admin" | "bartender" | "customer" | "events") => {
     setCurrentRole(role)
     if (role !== "customer") {
       setSelectedBeverage(null)
@@ -151,6 +152,11 @@ export default function BeverageCounter() {
         onBack={handleBackToBartender}
       />
     )
+  }
+
+  // Events Overview Screen
+  if (currentRole === "events") {
+    return <EventsOverviewScreen onBack={() => handleSwitchRole("admin")} />
   }
 
   // Fallback
