@@ -2,9 +2,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Dialog,
@@ -14,10 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ChevronDown, ChevronRight, RotateCcw, Download } from "lucide-react"
+import { ChevronDown, ChevronRight, RotateCcw, Download, Edit } from "lucide-react"
 import type { BeverageType } from "../types/beverage"
 import { BEVERAGE_CATEGORIES } from "../types/beverage"
-import { exportData, importData, clearStorage } from "../utils/storage"
+import { exportData, importData, clearStorage, getEventInfo, updateEventInfo } from "../utils/storage"
 
 interface AdminScreenProps {
   beverages: BeverageType[]
@@ -30,7 +32,18 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
   const [openCategories, setOpenCategories] = useState<string[]>(["sprizz"])
   const [showResetDialog, setShowResetDialog] = useState(false)
   const [showDataDialog, setShowDataDialog] = useState(false)
+  const [showEventDialog, setShowEventDialog] = useState(false)
+  const [eventInfo, setEventInfo] = useState({ eventName: "", eventDate: "", totalServed: 0 })
   const availableBeverages = beverages.filter((b) => b.available)
+
+  useEffect(() => {
+    const info = getEventInfo()
+    setEventInfo({
+      eventName: info.eventName || "",
+      eventDate: info.eventDate,
+      totalServed: info.totalServed,
+    })
+  }, [beverages])
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories((prev) =>
@@ -52,11 +65,15 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
   const handleExportData = () => {
     const data = exportData()
     if (data) {
+      const eventName = eventInfo.eventName || "event"
+      const eventDate = eventInfo.eventDate
+      const filename = `${eventName.toLowerCase().replace(/\s+/g, "-")}-${eventDate}.json`
+
       const blob = new Blob([data], { type: "application/json" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `beverage-counter-${new Date().toISOString().split("T")[0]}.json`
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -72,8 +89,8 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
         const content = e.target?.result as string
         const importedData = importData(content)
         if (importedData) {
-          // This would need to be passed up to the parent component
           console.log("Data imported successfully")
+          // This would need to be passed up to the parent component
         } else {
           alert("Failed to import data. Please check the file format.")
         }
@@ -82,10 +99,24 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
     }
   }
 
+  const handleUpdateEventInfo = () => {
+    updateEventInfo(eventInfo.eventName, eventInfo.eventDate)
+    setShowEventDialog(false)
+  }
+
   const confirmReset = () => {
     onResetData()
     clearStorage()
     setShowResetDialog(false)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
   }
 
   return (
@@ -94,13 +125,32 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
       <div className="text-center py-6">
         <h1 className="text-2xl font-light text-gray-800 mb-2">Admin Panel</h1>
         <p className="text-sm text-gray-600 mb-4">Select beverages available for this event</p>
-        <div className="text-center">
-          <div className="text-sm text-gray-500">Available Beverages</div>
-          <div className="text-xl font-semibold text-gray-800">{availableBeverages.length}</div>
-        </div>
+
+        {/* Event Info */}
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-left">
+                <div className="text-lg font-medium text-gray-800">{eventInfo.eventName || "Untitled Event"}</div>
+                <div className="text-sm text-gray-600">{formatDate(eventInfo.eventDate)}</div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowEventDialog(true)}>
+                <Edit className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Available Beverages</span>
+              <span className="font-semibold">{availableBeverages.length}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Total Served</span>
+              <span className="font-semibold">{eventInfo.totalServed}</span>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Data Safety Indicator */}
-        <div className="mt-4 p-2 bg-green-50 rounded-lg border border-green-200">
+        <div className="p-2 bg-green-50 rounded-lg border border-green-200">
           <div className="text-xs text-green-600">✓ Data automatically saved</div>
         </div>
       </div>
@@ -213,6 +263,42 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
         </Button>
       </div>
 
+      {/* Event Info Dialog */}
+      <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Event Information</DialogTitle>
+            <DialogDescription>Set the event name and date for better organization and exports.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="event-name">Event Name</Label>
+              <Input
+                id="event-name"
+                value={eventInfo.eventName}
+                onChange={(e) => setEventInfo({ ...eventInfo, eventName: e.target.value })}
+                placeholder="e.g., Summer Party 2024"
+              />
+            </div>
+            <div>
+              <Label htmlFor="event-date">Event Date</Label>
+              <Input
+                id="event-date"
+                type="date"
+                value={eventInfo.eventDate}
+                onChange={(e) => setEventInfo({ ...eventInfo, eventDate: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEventDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateEventInfo}>Save Event Info</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Reset Confirmation Dialog */}
       <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <DialogContent>
@@ -243,7 +329,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
           <div className="space-y-4">
             <Button className="w-full" onClick={handleExportData}>
               <Download className="w-4 h-4 mr-2" />
-              Download Backup File
+              Download Event Data
             </Button>
             <div>
               <label htmlFor="import-file" className="block text-sm font-medium text-gray-700 mb-2">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { type BeverageType, ALL_BEVERAGES } from "../types/beverage"
-import { saveToStorage, loadFromStorage } from "../utils/storage"
+import { saveToStorage, loadFromStorage, getEventInfo } from "../utils/storage"
 import AdminScreen from "./admin-screen"
 import BartenderScreen from "./bartender-screen"
 import DrinkScreen from "./drink-screen"
@@ -25,7 +25,8 @@ export default function BeverageCounter() {
   // Save data to localStorage whenever beverages change
   useEffect(() => {
     if (isLoaded) {
-      saveToStorage(beverages)
+      const eventInfo = getEventInfo()
+      saveToStorage(beverages, eventInfo.eventName, eventInfo.eventDate)
     }
   }, [beverages, isLoaded])
 
@@ -34,7 +35,8 @@ export default function BeverageCounter() {
     if (!isLoaded) return
 
     const interval = setInterval(() => {
-      saveToStorage(beverages)
+      const eventInfo = getEventInfo()
+      saveToStorage(beverages, eventInfo.eventName, eventInfo.eventDate)
     }, 30000) // 30 seconds
 
     return () => clearInterval(interval)
@@ -43,7 +45,8 @@ export default function BeverageCounter() {
   // Save before page unload
   useEffect(() => {
     const handleBeforeUnload = () => {
-      saveToStorage(beverages)
+      const eventInfo = getEventInfo()
+      saveToStorage(beverages, eventInfo.eventName, eventInfo.eventDate)
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload)
