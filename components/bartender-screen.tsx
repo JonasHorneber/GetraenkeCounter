@@ -15,7 +15,7 @@ interface BartenderScreenProps {
 }
 
 export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchRole }: BartenderScreenProps) {
-  const [openCategories, setOpenCategories] = useState<string[]>(["sprizz", "cocktails", "longdrinks", "alcohol-free"])
+  const [openCategories, setOpenCategories] = useState<string[]>([])
   const availableBeverages = beverages.filter((b) => b.available)
   const totalServed = availableBeverages.reduce((sum, b) => sum + b.count, 0)
 
