@@ -37,10 +37,10 @@ export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchR
     <div className="min-h-screen bg-gray-50 p-4 max-w-md mx-auto">
       {/* Header */}
       <div className="text-center py-6">
-        <h1 className="text-2xl font-light text-gray-800 mb-2">Bartender Panel</h1>
-        <p className="text-sm text-gray-600 mb-4">Select a beverage to serve</p>
+        <h1 className="text-2xl font-light text-gray-800 mb-2">Barkeeper-Panel</h1>
+        <p className="text-sm text-gray-600 mb-4">Wählen Sie ein Getränk zum Servieren</p>
         <div className="text-center">
-          <div className="text-sm text-gray-500">Total Served</div>
+          <div className="text-sm text-gray-500">Gesamt serviert</div>
           <div className="text-2xl font-semibold text-gray-800">{totalServed}</div>
         </div>
       </div>
@@ -68,7 +68,7 @@ export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchR
                               {category.name}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {categoryBeverages.length} drinks • {categoryTotal} served
+                              {categoryBeverages.length} Getränke • {categoryTotal} serviert
                             </div>
                           </div>
                         </div>
@@ -104,7 +104,7 @@ export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchR
                             <div className="text-lg font-semibold" style={{ color: beverage.color }}>
                               {beverage.count}
                             </div>
-                            <div className="text-xs text-gray-500">served</div>
+                            <div className="text-xs text-gray-500">serviert</div>
                           </div>
                         </div>
                       </div>
@@ -119,7 +119,7 @@ export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchR
 
       {/* Back to Admin */}
       <Button variant="outline" className="w-full bg-transparent" onClick={() => onSwitchRole("admin")}>
-        Back to Admin Panel
+        Zurück zum Admin-Panel
       </Button>
     </div>
   )

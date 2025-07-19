@@ -114,8 +114,8 @@ export default function BeverageCounter() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-2xl font-light text-gray-600 mb-2">Loading...</div>
-          <div className="text-sm text-gray-500">Restoring your data</div>
+          <div className="text-2xl font-light text-gray-600 mb-2">Lädt...</div>
+          <div className="text-sm text-gray-500">Ihre Daten werden wiederhergestellt</div>
         </div>
       </div>
     )

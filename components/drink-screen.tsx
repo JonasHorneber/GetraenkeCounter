@@ -68,7 +68,7 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
   }
 
   const formatTimestamp = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
+    return date.toLocaleTimeString("de-DE", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -97,7 +97,7 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
           {beverage.name}
         </h1>
         <div className="text-center">
-          <div className="text-sm text-gray-500">Total Served</div>
+          <div className="text-sm text-gray-500">Gesamt serviert</div>
           <div className="text-2xl font-semibold" style={{ color: beverage.color }}>
             {beverage.count}
           </div>
@@ -106,9 +106,9 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
         {/* Last Increment Timestamp */}
         {beverage.lastIncrement && (
           <div className="mt-4 p-3 bg-white rounded-lg shadow-sm">
-            <div className="text-xs text-gray-500">Last served</div>
+            <div className="text-xs text-gray-500">Zuletzt serviert</div>
             <div className="text-sm font-medium text-gray-700">
-              {beverage.lastIncrementAmount} drink{beverage.lastIncrementAmount !== 1 ? "s" : ""} at{" "}
+              {beverage.lastIncrementAmount} Getränk{beverage.lastIncrementAmount !== 1 ? "e" : ""} um{" "}
               {formatTimestamp(beverage.lastIncrement)}
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
       {/* Add Drinks Section */}
       <Card className="mb-6">
         <CardContent className="p-8 text-center">
-          <div className="text-lg font-medium text-gray-700 mb-6">Number of drinks to add</div>
+          <div className="text-lg font-medium text-gray-700 mb-6">Anzahl der hinzuzufügenden Getränke</div>
 
           <div className="flex items-center justify-center gap-6 mb-8">
             <Button
@@ -149,14 +149,13 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
             style={{ backgroundColor: beverage.color }}
             onClick={handleAddDrinks}
           >
-            Add {addCount} {beverage.name}
-            {addCount > 1 ? "s" : ""}
+            {addCount} {beverage.name} hinzufügen
           </Button>
 
           {/* Keypad Toggle */}
           <Button variant="outline" className="w-full bg-transparent mb-4" onClick={() => setShowKeypad(!showKeypad)}>
             <Calculator className="w-4 h-4 mr-2" />
-            {showKeypad ? "Hide Keypad" : "Show Keypad"}
+            {showKeypad ? "Zahlenblock ausblenden" : "Zahlenblock anzeigen"}
           </Button>
         </CardContent>
       </Card>
@@ -187,13 +186,14 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
             onClick={onUndoLastIncrement}
           >
             <Undo2 className="w-4 h-4 mr-2" />
-            Undo Last ({beverage.lastIncrementAmount} drink{beverage.lastIncrementAmount !== 1 ? "s" : ""})
+            Letzten Eintrag rückgängig machen ({beverage.lastIncrementAmount} Getränk
+            {beverage.lastIncrementAmount !== 1 ? "e" : ""})
           </Button>
         )}
 
         {/* Back Button */}
         <Button variant="outline" className="w-full bg-transparent" onClick={onBack}>
-          Back to Beverage List
+          Zurück zur Getränkeliste
         </Button>
       </div>
 
@@ -201,18 +201,17 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Addition</DialogTitle>
+            <DialogTitle>Hinzufügung bestätigen</DialogTitle>
             <DialogDescription>
-              Are you sure you want to add {addCount} {beverage.name}
-              {addCount > 1 ? "s" : ""} to the total count?
+              Sind Sie sicher, dass Sie {addCount} {beverage.name} zur Gesamtzahl hinzufügen möchten?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={cancelAddDrinks}>
-              Cancel
+              Abbrechen
             </Button>
             <Button onClick={confirmAddDrinks} style={{ backgroundColor: beverage.color }} className="text-white">
-              Confirm
+              Bestätigen
             </Button>
           </DialogFooter>
         </DialogContent>

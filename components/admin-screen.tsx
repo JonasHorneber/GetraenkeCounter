@@ -65,7 +65,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
   const handleExportData = () => {
     const data = exportData()
     if (data) {
-      const eventName = eventInfo.eventName || "event"
+      const eventName = eventInfo.eventName || "veranstaltung"
       const eventDate = eventInfo.eventDate
       const filename = `${eventName.toLowerCase().replace(/\s+/g, "-")}-${eventDate}.json`
 
@@ -89,10 +89,9 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
         const content = e.target?.result as string
         const importedData = importData(content)
         if (importedData) {
-          console.log("Data imported successfully")
-          // This would need to be passed up to the parent component
+          console.log("Daten erfolgreich importiert")
         } else {
-          alert("Failed to import data. Please check the file format.")
+          alert("Fehler beim Importieren der Daten. Bitte überprüfen Sie das Dateiformat.")
         }
       }
       reader.readAsText(file)
@@ -111,7 +110,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString("de-DE", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -123,15 +122,17 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
     <div className="min-h-screen bg-gray-50 p-4 max-w-md mx-auto">
       {/* Header */}
       <div className="text-center py-6">
-        <h1 className="text-2xl font-light text-gray-800 mb-2">Admin Panel</h1>
-        <p className="text-sm text-gray-600 mb-4">Select beverages available for this event</p>
+        <h1 className="text-2xl font-light text-gray-800 mb-2">Admin-Panel</h1>
+        <p className="text-sm text-gray-600 mb-4">Wählen Sie verfügbare Getränke für diese Veranstaltung</p>
 
         {/* Event Info */}
         <Card className="mb-4">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="text-left">
-                <div className="text-lg font-medium text-gray-800">{eventInfo.eventName || "Untitled Event"}</div>
+                <div className="text-lg font-medium text-gray-800">
+                  {eventInfo.eventName || "Unbenannte Veranstaltung"}
+                </div>
                 <div className="text-sm text-gray-600">{formatDate(eventInfo.eventDate)}</div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setShowEventDialog(true)}>
@@ -139,11 +140,11 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
               </Button>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Available Beverages</span>
+              <span className="text-gray-500">Verfügbare Getränke</span>
               <span className="font-semibold">{availableBeverages.length}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Total Served</span>
+              <span className="text-gray-500">Gesamt serviert</span>
               <span className="font-semibold">{eventInfo.totalServed}</span>
             </div>
           </CardContent>
@@ -151,7 +152,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
 
         {/* Data Safety Indicator */}
         <div className="p-2 bg-green-50 rounded-lg border border-green-200">
-          <div className="text-xs text-green-600">✓ Data automatically saved</div>
+          <div className="text-xs text-green-600">✓ Daten automatisch gespeichert</div>
         </div>
       </div>
 
@@ -178,7 +179,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
                               {category.name}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {availableCount}/{totalCount} selected
+                              {availableCount}/{totalCount} ausgewählt
                             </div>
                           </div>
                         </div>
@@ -243,7 +244,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
       {/* Navigation */}
       <div className="space-y-3 mb-6">
         <Button className="w-full" onClick={() => onSwitchRole("bartender")} disabled={availableBeverages.length === 0}>
-          Switch to Bartender View
+          Zur Barkeeper-Ansicht wechseln
         </Button>
       </div>
 
@@ -251,7 +252,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
       <div className="space-y-3">
         <Button variant="outline" className="w-full bg-transparent" onClick={() => setShowDataDialog(true)}>
           <Download className="w-4 h-4 mr-2" />
-          Export Data
+          Daten exportieren
         </Button>
         <Button
           variant="outline"
@@ -259,7 +260,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
           onClick={() => setShowResetDialog(true)}
         >
           <RotateCcw className="w-4 h-4 mr-2" />
-          Reset All Data
+          Alle Daten zurücksetzen
         </Button>
       </div>
 
@@ -267,21 +268,23 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
       <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Event Information</DialogTitle>
-            <DialogDescription>Set the event name and date for better organization and exports.</DialogDescription>
+            <DialogTitle>Veranstaltungsinformationen</DialogTitle>
+            <DialogDescription>
+              Legen Sie den Veranstaltungsnamen und das Datum für bessere Organisation und Exporte fest.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="event-name">Event Name</Label>
+              <Label htmlFor="event-name">Veranstaltungsname</Label>
               <Input
                 id="event-name"
                 value={eventInfo.eventName}
                 onChange={(e) => setEventInfo({ ...eventInfo, eventName: e.target.value })}
-                placeholder="e.g., Summer Party 2024"
+                placeholder="z.B. Sommerparty 2024"
               />
             </div>
             <div>
-              <Label htmlFor="event-date">Event Date</Label>
+              <Label htmlFor="event-date">Veranstaltungsdatum</Label>
               <Input
                 id="event-date"
                 type="date"
@@ -292,9 +295,9 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEventDialog(false)}>
-              Cancel
+              Abbrechen
             </Button>
-            <Button onClick={handleUpdateEventInfo}>Save Event Info</Button>
+            <Button onClick={handleUpdateEventInfo}>Veranstaltungsinfo speichern</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -303,17 +306,18 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
       <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reset All Data</DialogTitle>
+            <DialogTitle>Alle Daten zurücksetzen</DialogTitle>
             <DialogDescription>
-              This will permanently delete all beverage counts and settings. This action cannot be undone.
+              Dies wird alle Getränkezählungen und Einstellungen dauerhaft löschen. Diese Aktion kann nicht rückgängig
+              gemacht werden.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowResetDialog(false)}>
-              Cancel
+              Abbrechen
             </Button>
             <Button variant="destructive" onClick={confirmReset}>
-              Reset Everything
+              Alles zurücksetzen
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -323,17 +327,19 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
       <Dialog open={showDataDialog} onOpenChange={setShowDataDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Data Management</DialogTitle>
-            <DialogDescription>Export your data for backup or import previously saved data.</DialogDescription>
+            <DialogTitle>Datenverwaltung</DialogTitle>
+            <DialogDescription>
+              Exportieren Sie Ihre Daten zur Sicherung oder importieren Sie zuvor gespeicherte Daten.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Button className="w-full" onClick={handleExportData}>
               <Download className="w-4 h-4 mr-2" />
-              Download Event Data
+              Veranstaltungsdaten herunterladen
             </Button>
             <div>
               <label htmlFor="import-file" className="block text-sm font-medium text-gray-700 mb-2">
-                Import Data File
+                Datendatei importieren
               </label>
               <input
                 id="import-file"
@@ -346,7 +352,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDataDialog(false)}>
-              Close
+              Schließen
             </Button>
           </DialogFooter>
         </DialogContent>
