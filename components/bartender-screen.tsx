@@ -1,7 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown, ChevronRight } from "lucide-react"
 import type { BeverageType } from "../types/beverage"
 import { BEVERAGE_CATEGORIES } from "../types/beverage"
 
@@ -12,8 +15,15 @@ interface BartenderScreenProps {
 }
 
 export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchRole }: BartenderScreenProps) {
+  const [openCategories, setOpenCategories] = useState<string[]>(["sprizz", "cocktails", "longdrinks", "alcohol-free"])
   const availableBeverages = beverages.filter((b) => b.available)
   const totalServed = availableBeverages.reduce((sum, b) => sum + b.count, 0)
+
+  const toggleCategory = (categoryId: string) => {
+    setOpenCategories((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId],
+    )
+  }
 
   const getBeveragesByCategory = (categoryId: string) => {
     return beverages.filter((b) => b.available && b.category === categoryId)
@@ -36,54 +46,73 @@ export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchR
       </div>
 
       {/* Categories with Beverages */}
-      <div className="space-y-4 mb-6">
+      <div className="space-y-3 mb-6">
         {BEVERAGE_CATEGORIES.map((category) => {
           const categoryBeverages = getBeveragesByCategory(category.id)
           const categoryTotal = getCategoryTotal(category.id)
+          const isOpen = openCategories.includes(category.id)
 
           if (categoryBeverages.length === 0) return null
 
           return (
-            <div key={category.id}>
-              {/* Category Header */}
-              <div className="flex items-center justify-between mb-3 px-2">
-                <div className="flex items-center gap-2">
-                  <div className="text-lg">{category.icon}</div>
-                  <div className="font-medium" style={{ color: category.color }}>
-                    {category.name}
-                  </div>
-                </div>
-                <div className="text-sm text-gray-600">{categoryTotal} served</div>
-              </div>
-
-              {/* Category Beverages */}
-              <div className="space-y-2">
-                {categoryBeverages.map((beverage) => (
-                  <Card
-                    key={beverage.id}
-                    className="transition-all duration-200 cursor-pointer hover:shadow-md"
-                    onClick={() => onSelectBeverage(beverage.id)}
-                  >
-                    <CardContent className="p-3">
+            <Card key={category.id} className="overflow-hidden">
+              <Collapsible open={isOpen} onOpenChange={() => toggleCategory(category.id)}>
+                <CollapsibleTrigger asChild>
+                  <div className="w-full cursor-pointer">
+                    <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="text-lg">{beverage.icon}</div>
-                          <div className="font-medium" style={{ color: beverage.color }}>
-                            {beverage.name}
+                          <div className="text-xl">{category.icon}</div>
+                          <div>
+                            <div className="text-lg font-medium" style={{ color: category.color }}>
+                              {category.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {categoryBeverages.length} drinks • {categoryTotal} served
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-semibold" style={{ color: beverage.color }}>
-                            {beverage.count}
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                            style={{ backgroundColor: category.color }}
+                          >
+                            {categoryTotal}
                           </div>
-                          <div className="text-xs text-gray-500">served</div>
+                          {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                         </div>
                       </div>
                     </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t border-gray-100">
+                    {categoryBeverages.map((beverage) => (
+                      <div
+                        key={beverage.id}
+                        className="p-3 border-b border-gray-50 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => onSelectBeverage(beverage.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="text-lg">{beverage.icon}</div>
+                            <div className="font-medium" style={{ color: beverage.color }}>
+                              {beverage.name}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-semibold" style={{ color: beverage.color }}>
+                              {beverage.count}
+                            </div>
+                            <div className="text-xs text-gray-500">served</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
           )
         })}
       </div>
