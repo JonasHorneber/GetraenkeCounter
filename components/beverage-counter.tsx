@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { type BeverageType, ALL_BEVERAGES } from "../types/beverage"
-import { saveToStorage, loadFromStorage, getEventInfo } from "../utils/storage"
+import { saveToStorage, loadFromStorage, getEventInfo, clearStorage } from "../utils/storage" // Import clearStorage
 import AdminScreen from "./admin-screen"
 import BartenderScreen from "./bartender-screen"
 import DrinkScreen from "./drink-screen"
@@ -91,6 +91,7 @@ export default function BeverageCounter() {
 
   const resetAllData = () => {
     setBeverages(ALL_BEVERAGES)
+    clearStorage() // Clear current event info from localStorage
   }
 
   const handleSelectBeverage = (id: string) => {
