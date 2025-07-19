@@ -1,5 +1,5 @@
-import App from "../App"
+import BeverageCounter from "../components/beverage-counter"
 
 export default function Page() {
-  return <App />
+  return <BeverageCounter />
 }
