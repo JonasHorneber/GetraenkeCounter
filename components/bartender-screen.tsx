@@ -16,7 +16,7 @@ export default function BartenderScreen({ beverages, onSelectBeverage, onSwitchR
   const totalServed = availableBeverages.reduce((sum, b) => sum + b.count, 0)
 
   const getBeveragesByCategory = (categoryId: string) => {
-    return availableBeverages.filter((b) => b.category === categoryId)
+    return beverages.filter((b) => b.available && b.category === categoryId)
   }
 
   const getCategoryTotal = (categoryId: string) => {
