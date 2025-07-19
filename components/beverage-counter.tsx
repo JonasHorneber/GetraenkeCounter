@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { type BeverageType, ALL_BEVERAGES } from "../types/beverage"
+import { saveToStorage, loadFromStorage } from "../utils/storage"
 import AdminScreen from "./admin-screen"
 import BartenderScreen from "./bartender-screen"
 import DrinkScreen from "./drink-screen"
@@ -10,6 +11,44 @@ export default function BeverageCounter() {
   const [beverages, setBeverages] = useState<BeverageType[]>(ALL_BEVERAGES)
   const [currentRole, setCurrentRole] = useState<"admin" | "bartender" | "customer">("admin")
   const [selectedBeverage, setSelectedBeverage] = useState<string | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    const savedData = loadFromStorage()
+    if (savedData) {
+      setBeverages(savedData)
+    }
+    setIsLoaded(true)
+  }, [])
+
+  // Save data to localStorage whenever beverages change
+  useEffect(() => {
+    if (isLoaded) {
+      saveToStorage(beverages)
+    }
+  }, [beverages, isLoaded])
+
+  // Auto-save every 30 seconds as backup
+  useEffect(() => {
+    if (!isLoaded) return
+
+    const interval = setInterval(() => {
+      saveToStorage(beverages)
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [beverages, isLoaded])
+
+  // Save before page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveToStorage(beverages)
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [beverages])
 
   const toggleBeverageAvailability = (id: string) => {
     setBeverages((prev) => prev.map((b) => (b.id === id ? { ...b, available: !b.available } : b)))
@@ -46,6 +85,10 @@ export default function BeverageCounter() {
     )
   }
 
+  const resetAllData = () => {
+    setBeverages(ALL_BEVERAGES)
+  }
+
   const handleSelectBeverage = (id: string) => {
     setSelectedBeverage(id)
     setCurrentRole("customer")
@@ -63,6 +106,18 @@ export default function BeverageCounter() {
     }
   }
 
+  // Show loading state while data is being loaded
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl font-light text-gray-600 mb-2">Loading...</div>
+          <div className="text-sm text-gray-500">Restoring your data</div>
+        </div>
+      </div>
+    )
+  }
+
   // Admin Screen
   if (currentRole === "admin") {
     return (
@@ -70,6 +125,7 @@ export default function BeverageCounter() {
         beverages={beverages}
         onToggleBeverage={toggleBeverageAvailability}
         onSwitchRole={handleSwitchRole}
+        onResetData={resetAllData}
       />
     )
   }
@@ -96,6 +152,11 @@ export default function BeverageCounter() {
 
   // Fallback
   return (
-    <AdminScreen beverages={beverages} onToggleBeverage={toggleBeverageAvailability} onSwitchRole={handleSwitchRole} />
+    <AdminScreen
+      beverages={beverages}
+      onToggleBeverage={toggleBeverageAvailability}
+      onSwitchRole={handleSwitchRole}
+      onResetData={resetAllData}
+    />
   )
 }
