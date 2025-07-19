@@ -6,6 +6,8 @@ export interface BeverageType {
   count: number
   available: boolean
   category: string
+  lastIncrement?: Date
+  lastIncrementAmount?: number
 }
 
 export interface BeverageCategory {

@@ -16,7 +16,34 @@ export default function BeverageCounter() {
   }
 
   const addDrinks = (beverageId: string, count: number) => {
-    setBeverages((prev) => prev.map((b) => (b.id === beverageId ? { ...b, count: b.count + count } : b)))
+    setBeverages((prev) =>
+      prev.map((b) =>
+        b.id === beverageId
+          ? {
+              ...b,
+              count: b.count + count,
+              lastIncrement: new Date(),
+              lastIncrementAmount: count,
+            }
+          : b,
+      ),
+    )
+  }
+
+  const undoLastIncrement = (beverageId: string) => {
+    setBeverages((prev) =>
+      prev.map((b) => {
+        if (b.id === beverageId && b.lastIncrementAmount) {
+          return {
+            ...b,
+            count: Math.max(0, b.count - b.lastIncrementAmount),
+            lastIncrement: undefined,
+            lastIncrementAmount: undefined,
+          }
+        }
+        return b
+      }),
+    )
   }
 
   const handleSelectBeverage = (id: string) => {
@@ -61,6 +88,7 @@ export default function BeverageCounter() {
       <DrinkScreen
         beverage={beverage}
         onAddDrinks={(count) => addDrinks(selectedBeverage, count)}
+        onUndoLastIncrement={() => undoLastIncrement(selectedBeverage)}
         onBack={handleBackToBartender}
       />
     )
