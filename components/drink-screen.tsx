@@ -194,19 +194,17 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
       {/* Action Buttons */}
       <div className="space-y-3">
         {/* Undo Button */}
-        {beverage.lastIncrement &&
-          beverage.lastIncrementAmount &&
-          (
-            <Button
+        {beverage.lastIncrement && beverage.lastIncrementAmount && (
+          <Button
             variant="outline"
             className="w-full bg-transparent text-orange-600 border-orange-200 hover:bg-orange-50"
-            onClick={handleUndoClick} {/* Changed to show dialog first */}\
+            onClick={handleUndoClick}
           >
             <Undo2 className="w-4 h-4 mr-2" />
             Letzten Eintrag rückgängig machen ({beverage.lastIncrementAmount} Getränk
             {beverage.lastIncrementAmount !== 1 ? "e" : ""})
           </Button>
-          )}
+        )}
 
         {/* Back Button */}
         <Button variant="outline" className="w-full bg-transparent" onClick={onBack}>
