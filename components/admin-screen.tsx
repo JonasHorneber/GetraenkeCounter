@@ -190,18 +190,10 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
         })}
       </div>
 
-      {/* Role Switch Buttons */}
+      {/* Navigation */}
       <div className="space-y-3 mb-6">
         <Button className="w-full" onClick={() => onSwitchRole("bartender")} disabled={availableBeverages.length === 0}>
           Switch to Bartender View
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full bg-transparent"
-          onClick={() => onSwitchRole("customer")}
-          disabled={availableBeverages.length === 0}
-        >
-          Switch to Customer View
         </Button>
       </div>
 
