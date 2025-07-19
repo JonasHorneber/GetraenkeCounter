@@ -1,0 +1,381 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { ChevronDown, ChevronRight, RotateCcw, Download, Edit, Calendar } from "lucide-react"
+import type { BeverageType } from "../types/beverage"
+import { BEVERAGE_CATEGORIES } from "../types/beverage"
+import { exportData, importData, clearStorage, getEventInfo, updateEventInfo } from "../utils/storage"
+import { saveCompletedEvent } from "../utils/event-storage"
+
+interface AdminScreenProps {
+  beverages: BeverageType[]
+  onToggleBeverage: (id: string) => void
+  onSwitchRole: (role: "admin" | "bartender" | "customer") => void
+  onResetData: () => void
+}
+
+export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole, onResetData }: AdminScreenProps) {
+  const [openCategories, setOpenCategories] = useState<string[]>(["sprizz"])
+  const [showResetDialog, setShowResetDialog] = useState(false)
+  const [showDataDialog, setShowDataDialog] = useState(false)
+  const [showEventDialog, setShowEventDialog] = useState(false)
+  const [eventInfo, setEventInfo] = useState({ eventName: "", eventDate: "", totalServed: 0 })
+  const availableBeverages = beverages.filter((b) => b.available)
+
+  useEffect(() => {
+    const info = getEventInfo()
+    setEventInfo({
+      eventName: info.eventName || "",
+      eventDate: info.eventDate,
+      totalServed: info.totalServed,
+    })
+  }, [beverages])
+
+  const toggleCategory = (categoryId: string) => {
+    setOpenCategories((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId],
+    )
+  }
+
+  const getBeveragesByCategory = (categoryId: string) => {
+    return beverages.filter((b) => b.category === categoryId)
+  }
+
+  const getCategoryStats = (categoryId: string) => {
+    const categoryBeverages = getBeveragesByCategory(categoryId)
+    const availableCount = categoryBeverages.filter((b) => b.available).length
+    const totalCount = categoryBeverages.length
+    return { availableCount, totalCount }
+  }
+
+  const handleExportData = () => {
+    const data = exportData()
+    if (data) {
+      const eventName = eventInfo.eventName || "veranstaltung"
+      const eventDate = eventInfo.eventDate
+      const filename = `${eventName.toLowerCase().replace(/\s+/g, "-")}-${eventDate}.json`
+
+      const blob = new Blob([data], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const content = e.target?.result as string
+        const importedData = importData(content)
+        if (importedData) {
+          console.log("Daten erfolgreich importiert")
+        } else {
+          alert("Fehler beim Importieren der Daten. Bitte überprüfen Sie das Dateiformat.")
+        }
+      }
+      reader.readAsText(file)
+    }
+  }
+
+  const handleUpdateEventInfo = () => {
+    updateEventInfo(eventInfo.eventName, eventInfo.eventDate)
+    setShowEventDialog(false)
+  }
+
+  const confirmReset = () => {
+    onResetData()
+    clearStorage()
+    setShowResetDialog(false)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("de-DE", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 max-w-md mx-auto">
+      {/* Header */}
+      <div className="text-center py-6">
+        <h1 className="text-2xl font-light text-gray-800 mb-2">Admin-Panel</h1>
+        <p className="text-sm text-gray-600 mb-4">Wählen Sie verfügbare Getränke für diese Veranstaltung</p>
+
+        {/* Event Info */}
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-left">
+                <div className="text-lg font-medium text-gray-800">
+                  {eventInfo.eventName || "Unbenannte Veranstaltung"}
+                </div>
+                <div className="text-sm text-gray-600">{formatDate(eventInfo.eventDate)}</div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowEventDialog(true)}>
+                <Edit className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Verfügbare Getränke</span>
+              <span className="font-semibold">{availableBeverages.length}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Gesamt serviert</span>
+              <span className="font-semibold">{eventInfo.totalServed}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Safety Indicator */}
+        <div className="p-2 bg-green-50 rounded-lg border border-green-200">
+          <div className="text-xs text-green-600">✓ Daten automatisch gespeichert</div>
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="space-y-3 mb-6">
+        {BEVERAGE_CATEGORIES.map((category) => {
+          const categoryBeverages = getBeveragesByCategory(category.id)
+          const { availableCount, totalCount } = getCategoryStats(category.id)
+          const isOpen = openCategories.includes(category.id)
+
+          if (totalCount === 0) return null
+
+          return (
+            <Card key={category.id} className="overflow-hidden">
+              <Collapsible open={isOpen} onOpenChange={() => toggleCategory(category.id)}>
+                <CollapsibleTrigger asChild>
+                  <div className="w-full cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="text-xl">{category.icon}</div>
+                          <div>
+                            <div className="text-lg font-medium" style={{ color: category.color }}>
+                              {category.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {availableCount}/{totalCount} ausgewählt
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                            style={{ backgroundColor: category.color }}
+                          >
+                            {availableCount}
+                          </div>
+                          {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t border-gray-100">
+                    {categoryBeverages.map((beverage) => (
+                      <div
+                        key={beverage.id}
+                        className={`p-3 border-b border-gray-50 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${
+                          beverage.available ? "bg-blue-50" : ""
+                        }`}
+                        onClick={() => onToggleBeverage(beverage.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="text-lg">{beverage.icon}</div>
+                            <div
+                              className={`font-medium ${beverage.available ? "" : "text-gray-600"}`}
+                              style={{ color: beverage.available ? beverage.color : undefined }}
+                            >
+                              {beverage.name}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {beverage.count > 0 && <div className="text-sm text-gray-500">({beverage.count})</div>}
+                            <div
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                beverage.available ? "text-white" : "border-gray-300"
+                              }`}
+                              style={{
+                                backgroundColor: beverage.available ? beverage.color : "transparent",
+                                borderColor: beverage.available ? beverage.color : undefined,
+                              }}
+                            >
+                              {beverage.available && "✓"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Navigation */}
+      <div className="space-y-3 mb-6">
+        <Button className="w-full" onClick={() => onSwitchRole("bartender")} disabled={availableBeverages.length === 0}>
+          Zur Barkeeper-Ansicht wechseln
+        </Button>
+        <Button variant="outline" className="w-full bg-transparent" onClick={() => onSwitchRole("events")}>
+          <Calendar className="w-4 h-4 mr-2" />
+          Veranstaltungsübersicht
+        </Button>
+      </div>
+
+      {/* Data Management */}
+      <div className="space-y-3">
+        <Button variant="outline" className="w-full bg-transparent" onClick={() => setShowDataDialog(true)}>
+          <Download className="w-4 h-4 mr-2" />
+          Daten exportieren
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full bg-transparent text-red-600 border-red-200 hover:bg-red-50"
+          onClick={() => setShowResetDialog(true)}
+        >
+          <RotateCcw className="w-4 h-4 mr-2" />
+          Alle Daten zurücksetzen
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full bg-transparent text-blue-600 border-blue-200 hover:bg-blue-50"
+          onClick={() => {
+            const info = getEventInfo()
+            if (info.eventName && availableBeverages.some((b) => b.count > 0)) {
+              saveCompletedEvent(info.eventName, info.eventDate, beverages, info.eventStarted)
+              onResetData()
+            }
+          }}
+          disabled={!eventInfo.eventName || !availableBeverages.some((b) => b.count > 0)}
+        >
+          Veranstaltung abschließen
+        </Button>
+      </div>
+
+      {/* Event Info Dialog */}
+      <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Veranstaltungsinformationen</DialogTitle>
+            <DialogDescription>
+              Legen Sie den Veranstaltungsnamen und das Datum für bessere Organisation und Exporte fest.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="event-name">Veranstaltungsname</Label>
+              <Input
+                id="event-name"
+                value={eventInfo.eventName}
+                onChange={(e) => setEventInfo({ ...eventInfo, eventName: e.target.value })}
+                placeholder="z.B. Sommerparty 2024"
+              />
+            </div>
+            <div>
+              <Label htmlFor="event-date">Veranstaltungsdatum</Label>
+              <Input
+                id="event-date"
+                type="date"
+                value={eventInfo.eventDate}
+                onChange={(e) => setEventInfo({ ...eventInfo, eventDate: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEventDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleUpdateEventInfo}>Veranstaltungsinfo speichern</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Confirmation Dialog */}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alle Daten zurücksetzen</DialogTitle>
+            <DialogDescription>
+              Dies wird alle Getränkezählungen und Einstellungen dauerhaft löschen. Diese Aktion kann nicht rückgängig
+              gemacht werden.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResetDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={confirmReset}>
+              Alles zurücksetzen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Data Export Dialog */}
+      <Dialog open={showDataDialog} onOpenChange={setShowDataDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Datenverwaltung</DialogTitle>
+            <DialogDescription>
+              Exportieren Sie Ihre Daten zur Sicherung oder importieren Sie zuvor gespeicherte Daten.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Button className="w-full" onClick={handleExportData}>
+              <Download className="w-4 h-4 mr-2" />
+              Veranstaltungsdaten herunterladen
+            </Button>
+            <div>
+              <label htmlFor="import-file" className="block text-sm font-medium text-gray-700 mb-2">
+                Datendatei importieren
+              </label>
+              <input
+                id="import-file"
+                type="file"
+                accept=".json"
+                onChange={handleImportData}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDataDialog(false)}>
+              Schließen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
