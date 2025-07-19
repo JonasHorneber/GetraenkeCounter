@@ -23,7 +23,8 @@ interface DrinkScreenProps {
 
 export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement, onBack }: DrinkScreenProps) {
   const [addCount, setAddCount] = useState(1)
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [showConfirmAddDialog, setShowConfirmAddDialog] = useState(false) // Renamed for clarity
+  const [showUndoDialog, setShowUndoDialog] = useState(false) // New state for undo dialog
   const [showKeypad, setShowKeypad] = useState(false)
 
   const increment = () => {
@@ -54,17 +55,31 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
   }
 
   const handleAddDrinks = () => {
-    setShowConfirmDialog(true)
+    setShowConfirmAddDialog(true)
   }
 
   const confirmAddDrinks = () => {
     onAddDrinks(addCount)
-    setShowConfirmDialog(false)
+    setShowConfirmAddDialog(false)
     setAddCount(1)
   }
 
   const cancelAddDrinks = () => {
-    setShowConfirmDialog(false)
+    setShowConfirmAddDialog(false)
+  }
+
+  // New functions for undo confirmation
+  const handleUndoClick = () => {
+    setShowUndoDialog(true)
+  }
+
+  const confirmUndo = () => {
+    onUndoLastIncrement()
+    setShowUndoDialog(false)
+  }
+
+  const cancelUndo = () => {
+    setShowUndoDialog(false)
   }
 
   const formatTimestamp = (date: Date) => {
@@ -179,17 +194,19 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
       {/* Action Buttons */}
       <div className="space-y-3">
         {/* Undo Button */}
-        {beverage.lastIncrement && beverage.lastIncrementAmount && (
-          <Button
+        {beverage.lastIncrement &&
+          beverage.lastIncrementAmount &&
+          (
+            <Button
             variant="outline"
             className="w-full bg-transparent text-orange-600 border-orange-200 hover:bg-orange-50"
-            onClick={onUndoLastIncrement}
+            onClick={handleUndoClick} {/* Changed to show dialog first */}\
           >
             <Undo2 className="w-4 h-4 mr-2" />
             Letzten Eintrag rückgängig machen ({beverage.lastIncrementAmount} Getränk
             {beverage.lastIncrementAmount !== 1 ? "e" : ""})
           </Button>
-        )}
+          )}
 
         {/* Back Button */}
         <Button variant="outline" className="w-full bg-transparent" onClick={onBack}>
@@ -197,13 +214,14 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
         </Button>
       </div>
 
-      {/* Confirmation Dialog */}
-      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      {/* Confirmation Dialog for Adding Drinks */}
+      <Dialog open={showConfirmAddDialog} onOpenChange={setShowConfirmAddDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Hinzufügung bestätigen</DialogTitle>
             <DialogDescription>
-              Sind Sie sicher, dass Sie {addCount} {beverage.name} zur Gesamtzahl hinzufügen möchten?
+              Sind Sie sicher, dass Sie {addCount} {beverage.name}
+              {addCount > 1 ? "s" : ""} zur Gesamtzahl hinzufügen möchten?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -212,6 +230,27 @@ export default function DrinkScreen({ beverage, onAddDrinks, onUndoLastIncrement
             </Button>
             <Button onClick={confirmAddDrinks} style={{ backgroundColor: beverage.color }} className="text-white">
               Bestätigen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Undo */}
+      <Dialog open={showUndoDialog} onOpenChange={setShowUndoDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rückgängig machen bestätigen</DialogTitle>
+            <DialogDescription>
+              Sind Sie sicher, dass Sie den letzten Eintrag von {beverage.lastIncrementAmount} Getränk
+              {beverage.lastIncrementAmount !== 1 ? "en" : ""} rückgängig machen möchten?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelUndo}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={confirmUndo}>
+              Rückgängig machen
             </Button>
           </DialogFooter>
         </DialogContent>
