@@ -1,172 +1,276 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { type BeverageType, ALL_BEVERAGES } from "../types/beverage"
-import { saveToStorage, loadFromStorage, getEventInfo, clearStorage } from "../utils/storage" // Import clearStorage
+import { useState, useEffect, useCallback } from "react"
+import { v4 as uuidv4 } from "uuid"
+import { ALL_BEVERAGES } from "../types/beverage"
+import type { BeverageType } from "../types/beverage"
+import { getBeverages, saveBeverages, getEventInfo, saveEventInfo, clearStorage } from "../utils/storage"
+import { saveCompletedEvent } from "../utils/event-storage"
+import type { CompletedEvent, DrinkHistoryEntry } from "../types/event"
 import AdminScreen from "./admin-screen"
 import BartenderScreen from "./bartender-screen"
 import DrinkScreen from "./drink-screen"
 import EventsOverviewScreen from "./events-overview-screen"
+import LoginScreen from "./login-screen"
+import { isAuthenticated, login as authLogin, logout as authLogout } from "../utils/auth"
+
+// Static initial states to ensure server/client consistency
+const INITIAL_BEVERAGES = ALL_BEVERAGES.map((b) => ({ ...b, available: false, count: 0 }))
+const INITIAL_EVENT_NAME = ""
+const INITIAL_EVENT_DATE = ""
+const INITIAL_ROLE = "admin"
+const INITIAL_LOGGED_IN = false
 
 export default function BeverageCounter() {
-  const [beverages, setBeverages] = useState<BeverageType[]>(ALL_BEVERAGES)
-  const [currentRole, setCurrentRole] = useState<"admin" | "bartender" | "customer" | "events">("admin")
-  const [selectedBeverage, setSelectedBeverage] = useState<string | null>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  // All state starts with static values that are identical on server and client
+  const [beverages, setBeverages] = useState<BeverageType[]>(INITIAL_BEVERAGES)
+  const [selectedBeverageId, setSelectedBeverageId] = useState<string | null>(null)
+  const [currentRole, setCurrentRole] = useState<"admin" | "bartender" | "customer" | "events">(INITIAL_ROLE)
+  const [eventName, setEventName] = useState(INITIAL_EVENT_NAME)
+  const [eventDate, setEventDate] = useState(INITIAL_EVENT_DATE)
+  const [eventStartedAt, setEventStartedAt] = useState<Date | null>(null)
+  const [currentEventHistory, setCurrentEventHistory] = useState<DrinkHistoryEntry[]>([])
+  const [loggedIn, setLoggedIn] = useState(INITIAL_LOGGED_IN)
+  const [isClient, setIsClient] = useState(false)
 
-  // Load data from localStorage on component mount
+  // This effect runs only on the client after hydration
   useEffect(() => {
-    const savedData = loadFromStorage()
-    if (savedData) {
-      setBeverages(savedData)
+    setIsClient(true)
+
+    // Only after we're definitely on the client, check authentication and load data
+    const authenticated = isAuthenticated()
+    setLoggedIn(authenticated)
+
+    if (authenticated) {
+      // Load stored data
+      const storedBeverages = getBeverages()
+      if (storedBeverages.length > 0) {
+        setBeverages(storedBeverages)
+      }
+
+      const info = getEventInfo()
+      setEventName(info.eventName || "")
+      setEventDate(info.eventDate || new Date().toISOString().split("T")[0])
+      setEventStartedAt(info.eventStarted || new Date())
     }
-    setIsLoaded(true)
   }, [])
 
-  // Save data to localStorage whenever beverages change
+  // Save data whenever relevant state changes (only after client-side hydration)
   useEffect(() => {
-    if (isLoaded) {
-      const eventInfo = getEventInfo()
-      saveToStorage(beverages, eventInfo.eventName, eventInfo.eventDate)
+    if (!isClient || !loggedIn) return
+
+    saveBeverages(beverages)
+    if (eventStartedAt) {
+      saveEventInfo(
+        eventName,
+        eventDate,
+        beverages.reduce((sum, b) => sum + b.count, 0),
+        eventStartedAt,
+      )
     }
-  }, [beverages, isLoaded])
+  }, [beverages, eventName, eventDate, eventStartedAt, loggedIn, isClient])
 
-  // Auto-save every 30 seconds as backup
-  useEffect(() => {
-    if (!isLoaded) return
+  const handleLogin = useCallback((password: string) => {
+    if (authLogin(password)) {
+      setLoggedIn(true)
+      // Re-initialize data after successful login
+      const storedBeverages = getBeverages()
+      if (storedBeverages.length > 0) {
+        setBeverages(storedBeverages)
+      }
 
-    const interval = setInterval(() => {
-      const eventInfo = getEventInfo()
-      saveToStorage(beverages, eventInfo.eventName, eventInfo.eventDate)
-    }, 30000) // 30 seconds
-
-    return () => clearInterval(interval)
-  }, [beverages, isLoaded])
-
-  // Save before page unload
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      const eventInfo = getEventInfo()
-      saveToStorage(beverages, eventInfo.eventName, eventInfo.eventDate)
+      const info = getEventInfo()
+      setEventName(info.eventName || "")
+      setEventDate(info.eventDate || new Date().toISOString().split("T")[0])
+      setEventStartedAt(info.eventStarted || new Date())
+      return true
     }
+    return false
+  }, [])
 
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [beverages])
+  const handleLogout = useCallback(() => {
+    authLogout()
+    setLoggedIn(false)
+    // Clear current session data on logout
+    clearStorage()
+    setBeverages(INITIAL_BEVERAGES)
+    setEventName(INITIAL_EVENT_NAME)
+    setEventDate(INITIAL_EVENT_DATE)
+    setEventStartedAt(null)
+    setCurrentEventHistory([])
+    setSelectedBeverageId(null)
+    setCurrentRole(INITIAL_ROLE)
+  }, [])
 
-  const toggleBeverageAvailability = (id: string) => {
-    setBeverages((prev) => prev.map((b) => (b.id === id ? { ...b, available: !b.available } : b)))
-  }
+  const handleToggleBeverage = useCallback((id: string) => {
+    setBeverages((prevBeverages) => prevBeverages.map((b) => (b.id === id ? { ...b, available: !b.available } : b)))
+  }, [])
 
-  const addDrinks = (beverageId: string, count: number) => {
-    setBeverages((prev) =>
-      prev.map((b) =>
-        b.id === beverageId
-          ? {
+  const handleSelectBeverage = useCallback((id: string) => {
+    setSelectedBeverageId(id)
+    setCurrentRole("customer") // Switch to customer view (drink screen)
+  }, [])
+
+  const handleAddDrinks = useCallback(
+    (id: string, amount: number) => {
+      setBeverages((prevBeverages) =>
+        prevBeverages.map((b) => {
+          if (b.id === id) {
+            const newCount = b.count + amount
+            const newBeverage = {
               ...b,
-              count: b.count + count,
+              count: newCount,
               lastIncrement: new Date(),
-              lastIncrementAmount: count,
+              lastIncrementAmount: amount,
             }
-          : b,
-      ),
-    )
-  }
-
-  const undoLastIncrement = (beverageId: string) => {
-    setBeverages((prev) =>
-      prev.map((b) => {
-        if (b.id === beverageId && b.lastIncrementAmount) {
-          return {
-            ...b,
-            count: Math.max(0, b.count - b.lastIncrementAmount),
-            lastIncrement: undefined,
-            lastIncrementAmount: undefined,
+            // Add to current event history
+            setCurrentEventHistory((prevHistory) => [
+              ...prevHistory,
+              {
+                beverageId: id,
+                beverageName: b.name,
+                amount: amount,
+                timestamp: new Date(),
+                type: "add",
+                beverageIcon: b.icon,
+                beverageColor: b.color,
+              },
+            ])
+            return newBeverage
           }
-        }
-        return b
-      }),
-    )
-  }
+          return b
+        }),
+      )
+    },
+    [setCurrentEventHistory],
+  )
 
-  const resetAllData = () => {
-    setBeverages(ALL_BEVERAGES)
-    clearStorage() // Clear current event info from localStorage
-  }
+  const handleUndoLastIncrement = useCallback(
+    (beverageId?: string) => {
+      setBeverages((prevBeverages) => {
+        const updatedBeverages = prevBeverages.map((b) => {
+          // If beverageId is provided, only undo for that specific beverage
+          // Otherwise, undo for any beverage that has a recent increment
+          const shouldUndo = beverageId ? b.id === beverageId : b.lastIncrement && b.lastIncrementAmount && b.count > 0
 
-  const handleSelectBeverage = (id: string) => {
-    setSelectedBeverage(id)
-    setCurrentRole("customer")
-  }
+          if (shouldUndo && b.lastIncrement && b.lastIncrementAmount && b.count > 0) {
+            const newCount = b.count - b.lastIncrementAmount
+            // Add to current event history as an undo
+            setCurrentEventHistory((prevHistory) => [
+              ...prevHistory,
+              {
+                beverageId: b.id,
+                beverageName: b.name,
+                amount: -b.lastIncrementAmount, // Negative amount for undo
+                timestamp: new Date(),
+                type: "undo",
+                beverageIcon: b.icon,
+                beverageColor: b.color,
+              },
+            ])
+            return {
+              ...b,
+              count: newCount < 0 ? 0 : newCount,
+              lastIncrement: undefined,
+              lastIncrementAmount: undefined,
+            }
+          }
+          return b
+        })
+        return updatedBeverages
+      })
+    },
+    [setCurrentEventHistory],
+  )
 
-  const handleBackToBartender = () => {
-    setSelectedBeverage(null)
-    setCurrentRole("bartender")
-  }
-
-  const handleSwitchRole = (role: "admin" | "bartender" | "customer" | "events") => {
-    setCurrentRole(role)
-    if (role !== "customer") {
-      setSelectedBeverage(null)
+  const handleResetData = useCallback(() => {
+    // Save current event as completed before resetting
+    const totalServed = beverages.reduce((sum, b) => sum + b.count, 0)
+    if (totalServed > 0 && eventName.trim() !== "" && eventStartedAt) {
+      const completedEvent: CompletedEvent = {
+        id: uuidv4(),
+        eventName: eventName,
+        eventDate: new Date(eventDate),
+        eventStartedAt: eventStartedAt,
+        eventCompletedAt: new Date(),
+        totalServed: totalServed,
+        beverages: beverages.map((b) => ({ ...b, lastIncrement: undefined, lastIncrementAmount: undefined })), // Store final state
+        history: currentEventHistory, // Store detailed history
+      }
+      saveCompletedEvent(completedEvent)
     }
-  }
 
-  // Show loading state while data is being loaded
-  if (!isLoaded) {
+    clearStorage() // Clear current event data
+    setBeverages(INITIAL_BEVERAGES) // Reset to static initial state
+    setEventName(INITIAL_EVENT_NAME)
+    setEventDate(INITIAL_EVENT_DATE)
+    setEventStartedAt(new Date()) // Set new start time for next event
+    setCurrentEventHistory([]) // Clear history for new event
+    setSelectedBeverageId(null)
+    setCurrentRole(INITIAL_ROLE)
+  }, [beverages, eventName, eventDate, eventStartedAt, currentEventHistory])
+
+  const handleSwitchRole = useCallback((role: "admin" | "bartender" | "customer" | "events") => {
+    setCurrentRole(role)
+    if (role === "admin") {
+      setSelectedBeverageId(null) // Deselect beverage when going back to admin
+    }
+  }, [])
+
+  // Show loading state until client-side hydration is complete
+  if (!isClient) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="text-2xl font-light text-gray-600 mb-2">Lädt...</div>
-          <div className="text-sm text-gray-500">Ihre Daten werden wiederhergestellt</div>
+          <div className="text-lg text-gray-600">Loading...</div>
         </div>
       </div>
     )
   }
 
-  // Admin Screen
-  if (currentRole === "admin") {
-    return (
-      <AdminScreen
-        beverages={beverages}
-        onToggleBeverage={toggleBeverageAvailability}
-        onSwitchRole={handleSwitchRole}
-        onResetData={resetAllData}
-      />
-    )
+  if (!loggedIn) {
+    return <LoginScreen onLogin={handleLogin} />
   }
 
-  // Bartender Screen
-  if (currentRole === "bartender") {
-    return (
-      <BartenderScreen beverages={beverages} onSelectBeverage={handleSelectBeverage} onSwitchRole={handleSwitchRole} />
-    )
+  switch (currentRole) {
+    case "admin":
+      return (
+        <AdminScreen
+          beverages={beverages}
+          onToggleBeverage={handleToggleBeverage}
+          onSwitchRole={handleSwitchRole}
+          onResetData={handleResetData}
+          onLogout={handleLogout}
+        />
+      )
+    case "bartender":
+      return (
+        <BartenderScreen
+          beverages={beverages}
+          onSelectBeverage={handleSelectBeverage}
+          onAddDrinks={handleAddDrinks}
+          onUndoLastIncrement={handleUndoLastIncrement}
+          onSwitchRole={handleSwitchRole}
+        />
+      )
+    case "customer":
+      const selectedBeverage = beverages.find((b) => b.id === selectedBeverageId)
+      if (!selectedBeverage) {
+        // Fallback if beverage not found (e.g., after reset or direct link)
+        setCurrentRole("bartender")
+        return null
+      }
+      return (
+        <DrinkScreen
+          beverage={selectedBeverage}
+          onAddDrinks={(amount) => handleAddDrinks(selectedBeverage.id, amount)}
+          onUndoLastIncrement={() => handleUndoLastIncrement(selectedBeverage.id)}
+          onBack={() => setCurrentRole("bartender")}
+        />
+      )
+    case "events":
+      return <EventsOverviewScreen onBack={() => setCurrentRole("admin")} />
+    default:
+      return null
   }
-
-  // Drink Screen (Customer View)
-  if (currentRole === "customer" && selectedBeverage) {
-    const beverage = beverages.find((b) => b.id === selectedBeverage)!
-    return (
-      <DrinkScreen
-        beverage={beverage}
-        onAddDrinks={(count) => addDrinks(selectedBeverage, count)}
-        onUndoLastIncrement={() => undoLastIncrement(selectedBeverage)}
-        onBack={handleBackToBartender}
-      />
-    )
-  }
-
-  // Events Overview Screen
-  if (currentRole === "events") {
-    return <EventsOverviewScreen onBack={() => handleSwitchRole("admin")} />
-  }
-
-  // Fallback
-  return (
-    <AdminScreen
-      beverages={beverages}
-      onToggleBeverage={toggleBeverageAvailability}
-      onSwitchRole={handleSwitchRole}
-      onResetData={resetAllData}
-    />
-  )
 }

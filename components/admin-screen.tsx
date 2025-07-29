@@ -1,12 +1,11 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Dialog,
@@ -16,41 +15,163 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ChevronDown, ChevronRight, RotateCcw, Download, Edit, Calendar } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronRight,
+  Check,
+  CalendarDays,
+  LogOut,
+  CheckCircle2,
+  RefreshCcw,
+  AlertTriangle,
+} from "lucide-react"
 import type { BeverageType } from "../types/beverage"
 import { BEVERAGE_CATEGORIES } from "../types/beverage"
-import { exportData, importData, clearStorage, getEventInfo, updateEventInfo } from "../utils/storage"
-import { saveCompletedEvent } from "../utils/event-storage"
+import { getEventInfo, saveEventInfo } from "../utils/storage"
 
 interface AdminScreenProps {
   beverages: BeverageType[]
   onToggleBeverage: (id: string) => void
-  onSwitchRole: (role: "admin" | "bartender" | "customer") => void
+  onSwitchRole: (role: "admin" | "bartender" | "customer" | "events") => void
   onResetData: () => void
+  onLogout: () => void
 }
 
-export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole, onResetData }: AdminScreenProps) {
-  const [openCategories, setOpenCategories] = useState<string[]>(["sprizz"])
+// Convert ISO date (YYYY-MM-DD) to German format (DD/MM/YYYY)
+const isoToGermanDate = (isoDate: string): string => {
+  if (!isoDate) return ""
+  const [year, month, day] = isoDate.split("-")
+  return `${day}/${month}/${year}`
+}
+
+// Convert German date (DD/MM/YYYY) to ISO format (YYYY-MM-DD)
+const germanToIsoDate = (germanDate: string): string => {
+  if (!germanDate) return ""
+  const parts = germanDate.split("/")
+  if (parts.length !== 3) return ""
+  const [day, month, year] = parts
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
+}
+
+// Validate German date format
+const isValidGermanDate = (dateString: string): boolean => {
+  const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+  const match = dateString.match(regex)
+  if (!match) return false
+
+  const day = Number.parseInt(match[1], 10)
+  const month = Number.parseInt(match[2], 10)
+  const year = Number.parseInt(match[3], 10)
+
+  if (month < 1 || month > 12) return false
+  if (day < 1 || day > 31) return false
+  if (year < 1900 || year > 2100) return false
+
+  // Check if date is valid
+  const date = new Date(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+}
+
+export default function AdminScreen({
+  beverages,
+  onToggleBeverage,
+  onSwitchRole,
+  onResetData,
+  onLogout,
+}: AdminScreenProps) {
+  // Static initial states to ensure server/client consistency
+  const [eventName, setEventName] = useState("")
+  const [eventDate, setEventDate] = useState("")
+  const [displayEventDate, setDisplayEventDate] = useState("") // German format for display
   const [showResetDialog, setShowResetDialog] = useState(false)
-  const [showDataDialog, setShowDataDialog] = useState(false)
-  const [showEventDialog, setShowEventDialog] = useState(false)
-  const [eventInfo, setEventInfo] = useState({ eventName: "", eventDate: "", totalServed: 0 })
-  const availableBeverages = beverages.filter((b) => b.available)
+  const [showCompleteEventDialog, setShowCompleteEventDialog] = useState(false)
+  const [openCategories, setOpenCategories] = useState<string[]>([])
+  const [showNoBeveragesDialog, setShowNoBeveragesDialog] = useState(false)
+  const [isClient, setIsClient] = useState(false)
 
+  // Reset confirmation states
+  const [resetConfirmation1, setResetConfirmation1] = useState(false)
+  const [resetConfirmation2, setResetConfirmation2] = useState(false)
+  const [resetPassword, setResetPassword] = useState("")
+  const [resetPasswordError, setResetPasswordError] = useState("")
+
+  // This effect runs only on the client after hydration
   useEffect(() => {
-    const info = getEventInfo()
-    setEventInfo({
-      eventName: info.eventName || "",
-      eventDate: info.eventDate,
-      totalServed: info.totalServed,
-    })
-  }, [beverages])
+    setIsClient(true)
 
-  const toggleCategory = (categoryId: string) => {
-    setOpenCategories((prev) =>
-      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId],
-    )
+    // Only after we're definitely on the client, load stored data
+    const info = getEventInfo()
+    const storedDate = info.eventDate || new Date().toISOString().split("T")[0]
+    setEventName(info.eventName || "")
+    setEventDate(storedDate)
+    setDisplayEventDate(isoToGermanDate(storedDate))
+  }, [])
+
+  // Save data whenever relevant state changes (only after client-side hydration)
+  useEffect(() => {
+    if (!isClient) return
+
+    const totalServed = beverages.reduce((sum, b) => sum + b.count, 0)
+    const info = getEventInfo()
+    saveEventInfo(eventName, eventDate, totalServed, info.eventStarted)
+  }, [eventName, eventDate, beverages, isClient])
+
+  const handleDateChange = (value: string) => {
+    setDisplayEventDate(value)
+
+    // Convert to ISO format for storage if valid
+    if (isValidGermanDate(value)) {
+      const isoDate = germanToIsoDate(value)
+      setEventDate(isoDate)
+    }
   }
+
+  const handleResetData = () => {
+    setShowResetDialog(true)
+    // Reset all confirmation states when opening dialog
+    setResetConfirmation1(false)
+    setResetConfirmation2(false)
+    setResetPassword("")
+    setResetPasswordError("")
+  }
+
+  const confirmResetData = () => {
+    // Check if both confirmations are checked
+    if (!resetConfirmation1 || !resetConfirmation2) {
+      return
+    }
+
+    // Check password
+    if (resetPassword !== "v0") {
+      setResetPasswordError("Falsches Passwort")
+      return
+    }
+
+    // All checks passed, proceed with reset
+    onResetData()
+    setEventName("") // Reset event name
+    const todayIso = new Date().toISOString().split("T")[0]
+    setEventDate(todayIso) // Reset event date to today
+    setDisplayEventDate(isoToGermanDate(todayIso))
+    setShowResetDialog(false)
+  }
+
+  const handleCompleteEvent = () => {
+    setShowCompleteEventDialog(true)
+  }
+
+  const confirmCompleteEvent = () => {
+    onResetData() // This now also saves the completed event and resets current data
+    setEventName("") // Reset event name
+    const todayIso = new Date().toISOString().split("T")[0]
+    setEventDate(todayIso) // Reset event date to today
+    setDisplayEventDate(isoToGermanDate(todayIso))
+    setShowCompleteEventDialog(false)
+  }
+
+  const availableBeveragesCount = beverages.filter((b) => b.available).length
+  const totalDrinksServed = beverages.reduce((sum, b) => sum + b.count, 0)
+  const canCompleteEvent = totalDrinksServed > 0 && eventName.trim() !== ""
 
   const getBeveragesByCategory = (categoryId: string) => {
     return beverages.filter((b) => b.category === categoryId)
@@ -63,135 +184,121 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
     return { availableCount, totalCount }
   }
 
-  const handleExportData = () => {
-    const data = exportData()
-    if (data) {
-      const eventName = eventInfo.eventName || "veranstaltung"
-      const eventDate = eventInfo.eventDate
-      const filename = `${eventName.toLowerCase().replace(/\s+/g, "-")}-${eventDate}.json`
+  const toggleCategory = (categoryId: string) => {
+    setOpenCategories((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId],
+    )
+  }
 
-      const blob = new Blob([data], { type: "application/json" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+  const handleSwitchToBartender = () => {
+    const hasAvailableBeverages = beverages.some((b) => b.available)
+    if (!hasAvailableBeverages) {
+      setShowNoBeveragesDialog(true)
+      return
     }
+    onSwitchRole("bartender")
   }
 
-  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const content = e.target?.result as string
-        const importedData = importData(content)
-        if (importedData) {
-          console.log("Daten erfolgreich importiert")
-        } else {
-          alert("Fehler beim Importieren der Daten. Bitte überprüfen Sie das Dateiformat.")
-        }
-      }
-      reader.readAsText(file)
-    }
-  }
+  // Check if reset can be confirmed
+  const canConfirmReset = resetConfirmation1 && resetConfirmation2 && resetPassword === "v0"
 
-  const handleUpdateEventInfo = () => {
-    updateEventInfo(eventInfo.eventName, eventInfo.eventDate)
-    setShowEventDialog(false)
-  }
-
-  const confirmReset = () => {
-    onResetData()
-    clearStorage()
-    setShowResetDialog(false)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("de-DE", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
+  // Show loading state until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-xl text-gray-600">Loading...</div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 max-w-md mx-auto">
+    <div className="min-h-screen bg-gray-50 p-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="text-center py-6">
-        <h1 className="text-2xl font-light text-gray-800 mb-2">Admin-Panel</h1>
-        <p className="text-sm text-gray-600 mb-4">Wählen Sie verfügbare Getränke für diese Veranstaltung</p>
-
-        {/* Event Info */}
-        <Card className="mb-4">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-left">
-                <div className="text-lg font-medium text-gray-800">
-                  {eventInfo.eventName || "Unbenannte Veranstaltung"}
-                </div>
-                <div className="text-sm text-gray-600">{formatDate(eventInfo.eventDate)}</div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowEventDialog(true)}>
-                <Edit className="w-4 h-4" />
-              </Button>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Verfügbare Getränke</span>
-              <span className="font-semibold">{availableBeverages.length}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Gesamt serviert</span>
-              <span className="font-semibold">{eventInfo.totalServed}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Data Safety Indicator */}
-        <div className="p-2 bg-green-50 rounded-lg border border-green-200">
-          <div className="text-xs text-green-600">✓ Daten automatisch gespeichert</div>
-        </div>
+      <div className="text-center py-8 mb-8">
+        <h1 className="text-4xl font-light text-gray-800 mb-4">Admin-Panel</h1>
+        <p className="text-xl text-gray-600">Verwalten Sie Getränke und Veranstaltungen</p>
       </div>
 
-      {/* Categories */}
-      <div className="space-y-3 mb-6">
+      {/* Event Info Card */}
+      <Card className="mb-8 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-2xl font-medium">Veranstaltungsinformationen</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="eventName" className="mb-2 block text-lg">
+                Veranstaltungsname
+              </Label>
+              <Input
+                id="eventName"
+                value={eventName}
+                onChange={(e) => setEventName(e.target.value)}
+                placeholder="Z.B. Sommerfest 2024"
+                className="h-14 text-lg"
+              />
+            </div>
+            <div>
+              <Label htmlFor="eventDate" className="mb-2 block text-lg">
+                Veranstaltungsdatum
+              </Label>
+              <Input
+                id="eventDate"
+                type="text"
+                value={displayEventDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                placeholder="TT/MM/JJJJ"
+                className={`h-14 text-lg ${!isValidGermanDate(displayEventDate) && displayEventDate ? "border-red-300" : ""}`}
+              />
+              {!isValidGermanDate(displayEventDate) && displayEventDate && (
+                <p className="text-sm text-red-500 mt-1">Bitte geben Sie das Datum im Format TT/MM/JJJJ ein</p>
+              )}
+            </div>
+          </div>
+          <div className="text-lg text-gray-500 text-center p-4 bg-gray-50 rounded-lg">
+            <span className="font-semibold text-blue-600">{availableBeveragesCount}</span> Getränke verfügbar •
+            <span className="font-semibold text-green-600 ml-2">{totalDrinksServed}</span> gesamt serviert
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Beverage Availability by Category */}
+      <div className="space-y-6 mb-8">
         {BEVERAGE_CATEGORIES.map((category) => {
           const categoryBeverages = getBeveragesByCategory(category.id)
           const { availableCount, totalCount } = getCategoryStats(category.id)
           const isOpen = openCategories.includes(category.id)
 
-          if (totalCount === 0) return null
+          if (totalCount === 0) return null // Don't show empty categories
 
           return (
-            <Card key={category.id} className="overflow-hidden">
+            <Card key={category.id} className="overflow-hidden shadow-lg">
               <Collapsible open={isOpen} onOpenChange={() => toggleCategory(category.id)}>
                 <CollapsibleTrigger asChild>
-                  <div className="w-full cursor-pointer">
-                    <CardContent className="p-4">
+                  <div className="w-full cursor-pointer hover:bg-gray-50 transition-colors">
+                    <CardContent className="p-6">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="text-xl">{category.icon}</div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-3xl">{category.icon}</div>
                           <div>
-                            <div className="text-lg font-medium" style={{ color: category.color }}>
+                            <div className="text-2xl font-medium" style={{ color: category.color }}>
                               {category.name}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-lg text-gray-500">
                               {availableCount}/{totalCount} ausgewählt
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                            className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-medium"
                             style={{ backgroundColor: category.color }}
                           >
                             {availableCount}
                           </div>
-                          {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                          {isOpen ? <ChevronDown className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
                         </div>
                       </div>
                     </CardContent>
@@ -202,25 +309,25 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
                     {categoryBeverages.map((beverage) => (
                       <div
                         key={beverage.id}
-                        className={`p-3 border-b border-gray-50 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${
+                        className={`p-4 border-b border-gray-50 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${
                           beverage.available ? "bg-blue-50" : ""
                         }`}
                         onClick={() => onToggleBeverage(beverage.id)}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="text-lg">{beverage.icon}</div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-2xl">{beverage.icon}</div>
                             <div
-                              className={`font-medium ${beverage.available ? "" : "text-gray-600"}`}
+                              className={`text-lg font-medium ${beverage.available ? "" : "text-gray-600"}`}
                               style={{ color: beverage.available ? beverage.color : undefined }}
                             >
                               {beverage.name}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {beverage.count > 0 && <div className="text-sm text-gray-500">({beverage.count})</div>}
+                          <div className="flex items-center gap-3">
+                            {beverage.count > 0 && <div className="text-lg text-gray-500">({beverage.count})</div>}
                             <div
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
                                 beverage.available ? "text-white" : "border-gray-300"
                               }`}
                               style={{
@@ -228,7 +335,7 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
                                 borderColor: beverage.available ? beverage.color : undefined,
                               }}
                             >
-                              {beverage.available && "✓"}
+                              {beverage.available && <Check className="w-5 h-5" />}
                             </div>
                           </div>
                         </div>
@@ -242,136 +349,199 @@ export default function AdminScreen({ beverages, onToggleBeverage, onSwitchRole,
         })}
       </div>
 
-      {/* Navigation */}
-      <div className="space-y-3 mb-6">
-        <Button className="w-full" onClick={() => onSwitchRole("bartender")} disabled={availableBeverages.length === 0}>
+      {/* Action Buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Button
+          className="h-16 text-lg font-semibold"
+          onClick={handleSwitchToBartender}
+          disabled={availableBeveragesCount === 0}
+        >
           Zur Barkeeper-Ansicht wechseln
         </Button>
-        <Button variant="outline" className="w-full bg-transparent" onClick={() => onSwitchRole("events")}>
-          <Calendar className="w-4 h-4 mr-2" />
+        <Button
+          variant="outline"
+          className="h-16 text-lg font-semibold bg-transparent"
+          onClick={() => onSwitchRole("events")}
+        >
+          <CalendarDays className="w-5 h-5 mr-2" />
           Veranstaltungsübersicht
         </Button>
-      </div>
-
-      {/* Data Management */}
-      <div className="space-y-3">
-        <Button variant="outline" className="w-full bg-transparent" onClick={() => setShowDataDialog(true)}>
-          <Download className="w-4 h-4 mr-2" />
-          Daten exportieren
-        </Button>
         <Button
           variant="outline"
-          className="w-full bg-transparent text-red-600 border-red-200 hover:bg-red-50"
-          onClick={() => setShowResetDialog(true)}
+          className="h-16 text-lg font-semibold bg-transparent text-green-600 border-green-200 hover:bg-green-50"
+          onClick={handleCompleteEvent}
+          disabled={!canCompleteEvent}
         >
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Alle Daten zurücksetzen
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full bg-transparent text-blue-600 border-blue-200 hover:bg-blue-50"
-          onClick={() => {
-            const info = getEventInfo()
-            if (info.eventName && availableBeverages.some((b) => b.count > 0)) {
-              saveCompletedEvent(info.eventName, info.eventDate, beverages, info.eventStarted)
-              onResetData()
-            }
-          }}
-          disabled={!eventInfo.eventName || !availableBeverages.some((b) => b.count > 0)}
-        >
+          <CheckCircle2 className="w-5 h-5 mr-2" />
           Veranstaltung abschließen
         </Button>
+        <Button
+          variant="outline"
+          className="h-16 text-lg font-semibold bg-transparent text-red-600 border-red-200 hover:bg-red-50"
+          onClick={handleResetData}
+        >
+          <RefreshCcw className="w-5 h-5 mr-2" />
+          Alle Daten zurücksetzen
+        </Button>
+        <Button variant="outline" className="h-16 text-lg font-semibold bg-transparent" onClick={onLogout}>
+          <LogOut className="w-5 h-5 mr-2" />
+          Abmelden
+        </Button>
       </div>
 
-      {/* Event Info Dialog */}
-      <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
-        <DialogContent>
+      {/* No Beverages Selected Warning Dialog */}
+      <Dialog open={showNoBeveragesDialog} onOpenChange={setShowNoBeveragesDialog}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Veranstaltungsinformationen</DialogTitle>
-            <DialogDescription>
-              Legen Sie den Veranstaltungsnamen und das Datum für bessere Organisation und Exporte fest.
+            <DialogTitle className="text-xl">Keine Getränke ausgewählt</DialogTitle>
+            <DialogDescription className="text-lg">
+              Sie müssen mindestens ein Getränk auswählen, bevor Sie zur Barkeeper-Ansicht wechseln können. Wählen Sie
+              die gewünschten Getränke aus den Kategorien unten aus.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="event-name">Veranstaltungsname</Label>
-              <Input
-                id="event-name"
-                value={eventInfo.eventName}
-                onChange={(e) => setEventInfo({ ...eventInfo, eventName: e.target.value })}
-                placeholder="z.B. Sommerparty 2024"
-              />
-            </div>
-            <div>
-              <Label htmlFor="event-date">Veranstaltungsdatum</Label>
-              <Input
-                id="event-date"
-                type="date"
-                value={eventInfo.eventDate}
-                onChange={(e) => setEventInfo({ ...eventInfo, eventDate: e.target.value })}
-              />
-            </div>
-          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEventDialog(false)}>
-              Abbrechen
+            <Button onClick={() => setShowNoBeveragesDialog(false)} className="h-12 text-lg px-8">
+              Verstanden
             </Button>
-            <Button onClick={handleUpdateEventInfo}>Veranstaltungsinfo speichern</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Reset Confirmation Dialog */}
+      {/* Reset Data Confirmation Dialog */}
       <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Alle Daten zurücksetzen</DialogTitle>
-            <DialogDescription>
-              Dies wird alle Getränkezählungen und Einstellungen dauerhaft löschen. Diese Aktion kann nicht rückgängig
-              gemacht werden.
+            <DialogTitle className="flex items-center gap-2 text-red-600 text-xl">
+              <AlertTriangle className="w-6 h-6" />
+              Alle Daten zurücksetzen?
+            </DialogTitle>
+            <DialogDescription className="text-lg">
+              Diese Aktion setzt alle Getränkezähler und Verfügbarkeiten zurück. Bereits exportierte Daten bleiben
+              erhalten. Diese Aktion kann nicht rückgängig gemacht werden.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowResetDialog(false)}>
+
+          <div className="space-y-6 py-6">
+            {/* First Confirmation Switch */}
+            <div className="flex items-center justify-between space-x-4">
+              <Label
+                htmlFor="confirm1"
+                className="text-lg font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Ich verstehe, dass alle aktuellen Daten gelöscht werden
+              </Label>
+              <Switch id="confirm1" checked={resetConfirmation1} onCheckedChange={setResetConfirmation1} />
+            </div>
+
+            {/* Second Confirmation Switch */}
+            <div className="flex items-center justify-between space-x-4">
+              <Label
+                htmlFor="confirm2"
+                className="text-lg font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Ich bestätige, dass ich diese Aktion durchführen möchte
+              </Label>
+              <Switch id="confirm2" checked={resetConfirmation2} onCheckedChange={setResetConfirmation2} />
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-3">
+              <Label htmlFor="resetPassword" className="text-lg font-medium">
+                Passwort zur Bestätigung eingeben:
+              </Label>
+              <Input
+                id="resetPassword"
+                type="password"
+                value={resetPassword}
+                onChange={(e) => {
+                  setResetPassword(e.target.value)
+                  setResetPasswordError("")
+                }}
+                placeholder="Passwort eingeben"
+                className={`h-14 text-lg ${resetPasswordError ? "border-red-500" : ""}`}
+              />
+              {resetPasswordError && <p className="text-lg text-red-500">{resetPasswordError}</p>}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-3">
+            <Button variant="outline" onClick={() => setShowResetDialog(false)} className="h-12 text-lg px-8">
               Abbrechen
             </Button>
-            <Button variant="destructive" onClick={confirmReset}>
-              Alles zurücksetzen
+            <Button
+              variant="destructive"
+              onClick={confirmResetData}
+              disabled={!canConfirmReset}
+              className="h-12 text-lg px-8"
+            >
+              Endgültig zurücksetzen
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Data Export Dialog */}
-      <Dialog open={showDataDialog} onOpenChange={setShowDataDialog}>
-        <DialogContent>
+      {/* Complete Event Confirmation Dialog */}
+      <Dialog open={showCompleteEventDialog} onOpenChange={setShowCompleteEventDialog}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Datenverwaltung</DialogTitle>
-            <DialogDescription>
-              Exportieren Sie Ihre Daten zur Sicherung oder importieren Sie zuvor gespeicherte Daten.
+            <DialogTitle className="text-xl">Veranstaltung abschließen?</DialogTitle>
+            <DialogDescription className="text-lg">
+              Die aktuelle Veranstaltung wird gespeichert und alle Zähler werden zurückgesetzt. Möchten Sie fortfahren?
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <Button className="w-full" onClick={handleExportData}>
-              <Download className="w-4 h-4 mr-2" />
-              Veranstaltungsdaten herunterladen
-            </Button>
-            <div>
-              <label htmlFor="import-file" className="block text-sm font-medium text-gray-700 mb-2">
-                Datendatei importieren
-              </label>
-              <input
-                id="import-file"
-                type="file"
-                accept=".json"
-                onChange={handleImportData}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
+
+          {/* Event Summary */}
+          <div className="py-4 px-2">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Zusammenfassung der Veranstaltung:</h3>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Name:</span>
+                  <span className="font-semibold text-gray-800">{eventName || "Unbenannt"}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Datum:</span>
+                  <span className="font-semibold text-gray-800">{displayEventDate || "Nicht gesetzt"}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Gesamt servierte Getränke:</span>
+                  <span className="font-bold text-green-600 text-lg">{totalDrinksServed}</span>
+                </div>
+              </div>
+
+              {/* Top beverages served */}
+              {totalDrinksServed > 0 && (
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Meistservierte Getränke:</h4>
+                  <div className="space-y-1">
+                    {beverages
+                      .filter((b) => b.count > 0)
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 3)
+                      .map((beverage) => (
+                        <div key={beverage.id} className="flex justify-between items-center text-sm">
+                          <span className="flex items-center gap-1">
+                            <span className="text-base">{beverage.icon}</span>
+                            <span style={{ color: beverage.color }}>{beverage.name}</span>
+                          </span>
+                          <span className="font-semibold">{beverage.count}x</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDataDialog(false)}>
-              Schließen
+
+          <DialogFooter className="gap-3">
+            <Button variant="outline" onClick={() => setShowCompleteEventDialog(false)} className="h-12 text-lg px-8">
+              Abbrechen
+            </Button>
+            <Button onClick={confirmCompleteEvent} className="h-12 text-lg px-8">
+              Abschließen
             </Button>
           </DialogFooter>
         </DialogContent>

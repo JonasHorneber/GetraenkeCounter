@@ -33,7 +33,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥂",
     color: "#ff6b35",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "sprizz",
   },
   {
@@ -42,7 +42,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥂",
     color: "#ff6b35",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "sprizz",
   },
   { id: "hugo", name: "Hugo", icon: "🥂", color: "#ff6b35", count: 0, available: false, category: "sprizz" },
@@ -52,7 +52,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥂",
     color: "#ff6b35",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "sprizz",
   },
   {
@@ -61,7 +61,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥂",
     color: "#ff6b35",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "sprizz",
   },
   {
@@ -70,7 +70,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥂",
     color: "#ff6b35",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "sprizz",
   },
 
@@ -81,7 +81,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥃",
     color: "#3f51b5",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "longdrinks",
   },
   {
@@ -90,7 +90,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥃",
     color: "#3f51b5",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "longdrinks",
   },
   {
@@ -99,7 +99,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥃",
     color: "#3f51b5",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "longdrinks",
   },
   {
@@ -108,7 +108,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🥃",
     color: "#3f51b5",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "longdrinks",
   },
 
@@ -119,7 +119,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
   { id: "mojito", name: "Mojito", icon: "🍸", color: "#ff1744", count: 0, available: false, category: "cocktails" },
@@ -129,7 +129,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
   {
@@ -138,7 +138,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
   {
@@ -147,7 +147,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
   {
@@ -156,7 +156,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
   {
@@ -165,7 +165,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
   {
@@ -174,7 +174,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
   {
@@ -183,7 +183,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🍸",
     color: "#ff1744",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "cocktails",
   },
 
@@ -196,7 +196,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🧃",
     color: "#4caf50",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "alcohol-free",
   },
   {
@@ -205,7 +205,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🧃",
     color: "#4caf50",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "alcohol-free",
   },
   {
@@ -214,7 +214,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🧃",
     color: "#4caf50",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "alcohol-free",
   },
   {
@@ -223,7 +223,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🧃",
     color: "#4caf50",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "alcohol-free",
   },
   {
@@ -232,7 +232,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🧃",
     color: "#4caf50",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "alcohol-free",
   },
   {
@@ -241,7 +241,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🧃",
     color: "#4caf50",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "alcohol-free",
   },
   {
@@ -250,7 +250,7 @@ export const ALL_BEVERAGES: BeverageType[] = [
     icon: "🧃",
     color: "#4caf50",
     count: 0,
-    available: false,
+    available: false, // Default to not available
     category: "alcohol-free",
   },
 ]

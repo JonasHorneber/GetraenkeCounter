@@ -1,41 +1,23 @@
-export interface CompletedEvent {
-  id: string
-  name: string
-  date: string
-  completedAt: string
-  beverages: Array<{
-    id: string
-    name: string
-    category: string
-    count: number
-    icon: string
-    color: string
-  }>
-  totalServed: number
-  duration?: string
+import type { BeverageType } from "./beverage"
+
+export interface DrinkHistoryEntry {
+  timestamp: Date
+  beverageId: string
+  beverageName: string
+  amount: number
+  type: "add" | "undo" | "correction"
+  beverageIcon?: string
+  beverageColor?: string
+  reason?: string // Optional reason for undo/correction
 }
 
-export interface EventStatistics {
-  totalEvents: number
-  totalDrinksServed: number
-  averageDrinksPerEvent: number
-  topDrinks: Array<{
-    name: string
-    totalCount: number
-    category: string
-    icon: string
-    color: string
-    eventsServedIn: number
-  }>
-  topCategories: Array<{
-    name: string
-    totalCount: number
-    color: string
-    icon: string
-  }>
-  mostPopularEvent: {
-    name: string
-    date: string
-    totalServed: number
-  } | null
+export interface CompletedEvent {
+  id: string
+  eventName: string
+  eventDate: Date
+  eventStartedAt: Date
+  eventCompletedAt: Date
+  totalServed: number
+  beverages: BeverageType[] // Final state of beverages for this event
+  history: DrinkHistoryEntry[] // Detailed history of adds/undos
 }

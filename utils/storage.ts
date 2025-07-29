@@ -1,204 +1,98 @@
 import type { BeverageType } from "../types/beverage"
 
-const STORAGE_KEY = "beverage-counter-data"
-const STORAGE_VERSION = "1.0"
+const BEVERAGES_STORAGE_KEY = "beverage_counter_beverages"
+const EVENT_INFO_STORAGE_KEY = "beverage_counter_event_info"
 
-interface StorageData {
-  version: string
+interface EventInfo {
+  eventName: string
   eventDate: string
-  eventName?: string
-  beverages: BeverageType[]
-  lastSaved: string
   totalServed: number
-  eventStarted?: string
+  eventStarted?: Date // Optional: when the event started
 }
 
-export const saveToStorage = (beverages: BeverageType[], eventName?: string, eventDate?: string) => {
-  try {
-    const totalServed = beverages.reduce((sum, b) => sum + b.count, 0)
-    const existingData = loadStorageData()
+export function getBeverages(): BeverageType[] {
+  if (typeof window === "undefined") return []
 
-    const data: StorageData = {
-      version: STORAGE_VERSION,
-      eventDate: eventDate || existingData?.eventDate || new Date().toISOString().split("T")[0],
-      eventName: eventName || existingData?.eventName,
-      eventStarted: existingData?.eventStarted || new Date().toISOString(),
-      beverages: beverages.map((b) => ({
+  try {
+    const storedBeverages = localStorage.getItem(BEVERAGES_STORAGE_KEY)
+    if (storedBeverages) {
+      const parsed = JSON.parse(storedBeverages)
+      // Ensure Date objects are correctly parsed if they were stored as ISO strings
+      return parsed.map((b: BeverageType) => ({
         ...b,
-        lastIncrement: b.lastIncrement ? b.lastIncrement.toISOString() : undefined,
-      })),
-      lastSaved: new Date().toISOString(),
-      totalServed,
+        lastIncrement: b.lastIncrement ? new Date(b.lastIncrement) : undefined,
+      }))
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-    console.log("Data saved to localStorage at", new Date().toLocaleTimeString())
-  } catch (error) {
-    console.error("Failed to save data to localStorage:", error)
+  } catch (e) {
+    console.error("Failed to parse beverages from localStorage", e)
   }
+
+  return []
 }
 
-const loadStorageData = (): StorageData | null => {
+export function saveBeverages(beverages: BeverageType[]): void {
+  if (typeof window === "undefined") return
+
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) return null
-    return JSON.parse(stored)
-  } catch (error) {
-    console.error("Failed to parse storage data:", error)
-    return null
-  }
-}
-
-export const loadFromStorage = (): BeverageType[] | null => {
-  try {
-    const data = loadStorageData()
-    if (!data) return null
-
-    // Version check for future compatibility
-    if (data.version !== STORAGE_VERSION) {
-      console.warn("Storage version mismatch, using default data")
-      return null
-    }
-
-    // Convert ISO strings back to Date objects
-    const beverages = data.beverages.map((b) => ({
+    // Convert Date objects to ISO strings for storage
+    const serializableBeverages = beverages.map((b) => ({
       ...b,
-      lastIncrement: b.lastIncrement ? new Date(b.lastIncrement) : undefined,
+      lastIncrement: b.lastIncrement ? b.lastIncrement.toISOString() : undefined,
     }))
-
-    console.log("Data loaded from localStorage, last saved:", new Date(data.lastSaved).toLocaleTimeString())
-    return beverages
-  } catch (error) {
-    console.error("Failed to load data from localStorage:", error)
-    return null
+    localStorage.setItem(BEVERAGES_STORAGE_KEY, JSON.stringify(serializableBeverages))
+  } catch (e) {
+    console.error("Failed to save beverages to localStorage", e)
   }
 }
 
-export const getEventInfo = () => {
-  const data = loadStorageData()
-  return {
-    eventDate: data?.eventDate || new Date().toISOString().split("T")[0],
-    eventName: data?.eventName,
-    eventStarted: data?.eventStarted,
-    totalServed: data?.totalServed || 0,
-    lastSaved: data?.lastSaved,
+export function getEventInfo(): EventInfo {
+  const defaultInfo = {
+    eventName: "",
+    eventDate: new Date().toISOString().split("T")[0],
+    totalServed: 0,
   }
-}
 
-export const updateEventInfo = (eventName: string, eventDate: string) => {
-  const data = loadStorageData()
-  if (data) {
-    data.eventName = eventName
-    data.eventDate = eventDate
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  }
-}
+  if (typeof window === "undefined") return defaultInfo
 
-export const clearStorage = () => {
   try {
-    localStorage.removeItem(STORAGE_KEY)
-    console.log("Storage cleared")
-  } catch (error) {
-    console.error("Failed to clear storage:", error)
-  }
-}
-
-export const exportData = (): string => {
-  try {
-    const data = loadStorageData()
-    if (!data) return ""
-
-    // Create a more organized export format
-    const exportData = {
-      eventInfo: {
-        name: data.eventName || "Untitled Event",
-        date: data.eventDate,
-        started: data.eventStarted,
-        totalServed: data.totalServed,
-        lastUpdated: data.lastSaved,
-      },
-      summary: {
-        totalBeverages: data.beverages.length,
-        availableBeverages: data.beverages.filter((b) => b.available).length,
-        categorySummary: getCategorySummary(data.beverages),
-      },
-      beverageData: data.beverages.map((b) => ({
-        name: b.name,
-        category: b.category,
-        available: b.available,
-        count: b.count,
-        lastServed: b.lastIncrement,
-        lastAmount: b.lastIncrementAmount,
-      })),
-      metadata: {
-        exportedAt: new Date().toISOString(),
-        version: data.version,
-      },
-    }
-
-    return JSON.stringify(exportData, null, 2)
-  } catch (error) {
-    console.error("Failed to export data:", error)
-    return ""
-  }
-}
-
-const getCategorySummary = (beverages: BeverageType[]) => {
-  const categories = ["sprizz", "cocktails", "longdrinks", "schnaps", "alcohol-free"]
-  return categories.reduce(
-    (summary, category) => {
-      const categoryBeverages = beverages.filter((b) => b.category === category && b.available)
-      const totalServed = categoryBeverages.reduce((sum, b) => sum + b.count, 0)
-
-      if (categoryBeverages.length > 0) {
-        summary[category] = {
-          availableDrinks: categoryBeverages.length,
-          totalServed,
-          topDrink: categoryBeverages.reduce((top, current) => (current.count > top.count ? current : top)).name,
-        }
+    const storedInfo = localStorage.getItem(EVENT_INFO_STORAGE_KEY)
+    if (storedInfo) {
+      const parsed = JSON.parse(storedInfo)
+      return {
+        ...parsed,
+        eventStarted: parsed.eventStarted ? new Date(parsed.eventStarted) : undefined,
       }
+    }
+  } catch (e) {
+    console.error("Failed to parse event info from localStorage", e)
+  }
 
-      return summary
-    },
-    {} as Record<string, any>,
-  )
+  return defaultInfo
 }
 
-export const importData = (jsonString: string): BeverageType[] | null => {
+export function saveEventInfo(eventName: string, eventDate: string, totalServed = 0, eventStarted?: Date): void {
+  if (typeof window === "undefined") return
+
   try {
-    const data = JSON.parse(jsonString)
-
-    // Handle both old and new export formats
-    let beverages: any[]
-    if (data.beverageData) {
-      // New format
-      beverages = data.beverageData
-    } else if (data.beverages) {
-      // Old format
-      beverages = data.beverages
-    } else {
-      throw new Error("Invalid data format")
+    const infoToStore = {
+      eventName,
+      eventDate,
+      totalServed,
+      eventStarted: eventStarted ? eventStarted.toISOString() : undefined,
     }
+    localStorage.setItem(EVENT_INFO_STORAGE_KEY, JSON.stringify(infoToStore))
+  } catch (e) {
+    console.error("Failed to save event info to localStorage", e)
+  }
+}
 
-    if (!Array.isArray(beverages)) {
-      throw new Error("Invalid data format")
-    }
+export function clearStorage(): void {
+  if (typeof window === "undefined") return
 
-    // Convert back to full beverage format
-    const importedBeverages = beverages.map((b) => ({
-      id: b.id || b.name.toLowerCase().replace(/\s+/g, "-"),
-      name: b.name,
-      icon: b.icon || "🍹",
-      color: b.color || "#666666",
-      count: b.count || 0,
-      available: b.available || false,
-      category: b.category || "cocktails",
-      lastIncrement: b.lastServed ? new Date(b.lastServed) : undefined,
-      lastIncrementAmount: b.lastAmount,
-    }))
-
-    return importedBeverages
-  } catch (error) {
-    console.error("Failed to import data:", error)
-    return null
+  try {
+    localStorage.removeItem(BEVERAGES_STORAGE_KEY)
+    localStorage.removeItem(EVENT_INFO_STORAGE_KEY)
+  } catch (e) {
+    console.error("Failed to clear storage", e)
   }
 }
